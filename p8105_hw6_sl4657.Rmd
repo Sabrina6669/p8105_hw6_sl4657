@@ -1,0 +1,73 @@
+---
+title: "hw6"
+output: github_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(modelr)
+set.seed(1)
+```
+
+Problem 1
+```{r}
+bw_data=read.csv("birthweight.csv") %>% 
+  mutate(
+    babysex=recode(babysex, "1"="male", "2"="female"),
+    frace=recode(frace, "1"="white", "2"="black", "3"="asian", "4"="puerto_rican", "8"="other", "9"="unknown"),
+    malform=recode(malform, "0"="absent", "1"="present"),
+    mrace=recode(mrace, "1"="white", "2"="black", "3"="asian", "4"="puerto_rican", "8"="other")
+  )
+colSums(is.na(bw_data)) 
+# no missing data
+```
+
+```{r}
+lm0_test = lm(bwt ~ ., data = bw_data)
+step(lm0_test, direction = 'backward')
+# using stepwise regression to choose model, and the model I choose including predictors: babysex, baby' s head circumference, baby's length and so on.
+lm0 = lm(bwt ~ babysex + bhead + blength + delwt + fincome + gaweeks + mheight + mrace + parity + ppwt + smoken, data = bw_data)
+summary(lm0)
+
+bw_data %>% 
+  add_predictions(model = lm0, var = "predict") %>% 
+  add_residuals(model = lm0, var = "residual") %>%
+  ggplot(aes(x = predict, y = residual)) + 
+  geom_point(alpha = 0.2) +
+  geom_smooth(color = "yellow") + 
+  labs(title = "Model residuals against fitted values", 
+       y = "Residuals",
+       x = "Fitted Values"
+       )
+```
+
+```{r}
+cv_df=bw_data %>% 
+  crossv_mc(100) %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble)) %>% 
+  mutate(
+    lm0=map(.x=train, ~lm(bwt ~ babysex + bhead + blength + delwt + fincome + gaweeks + mheight + mrace + parity + ppwt + smoken, data=.x)),
+    lm1=map(.x=train, ~lm(bwt~blength+gaweeks, data=.x)),
+    lm2=map(.x=train, ~lm(bwt~bhead + blength + babysex + bhead*blength+ blength*babysex + bhead*blength*babysex, data =.x)),
+    rmse_lm0= map2_dbl(.x=lm0, .y=test, ~rmse(.x, .y)),
+    rmse_lm1=map2_dbl(.x=lm1, .y=test, ~rmse(.x, .y)),
+    rmse_lm2=map2_dbl(.x=lm2, .y=test, ~rmse(.x, .y))
+  )
+
+cv_df %>% 
+  select(starts_with("rmse")) %>% 
+pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
+```
+
+From the figure we can see that the model that we fit has the lowest rmse, there’s clearly some improvement in predictive accuracy. The model with interacion performs worse than `lm0`, but still better than the model with only two predictors which does not take full advantage of the data.
+

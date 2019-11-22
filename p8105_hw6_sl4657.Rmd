@@ -37,6 +37,7 @@ bw_data %>%
   ggplot(aes(x = predict, y = residual)) + 
   geom_point(alpha = 0.2) +
   geom_smooth(color = "yellow") + 
+  geom_abline(intercept = 0, slope = 0, color="red") +
   labs(title = "Model residuals against fitted values", 
        y = "Residuals",
        x = "Fitted Values"
@@ -109,7 +110,7 @@ weather_mod %>%
   labs(title="Distribution of log(beta0*beta1)")
 ```
 
-Distribution of r_squared is nearly normally distributed, but a bit right skewed, might because of some outliers in the sample. 
+Distribution of r_squared is nearly normally distributed, but a bit left skewed, might because of some outliers in the sample. 
 
 Distribution of log(beta0*beta1) is pretty much the same way.
 ```{r}
